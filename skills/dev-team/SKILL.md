@@ -259,6 +259,29 @@ Use worktrees when:
 - You want to review changes before they land on the main branch
 - The task is risky and you want easy rollback
 
+**Worktree agent commit requirement** — When spawning agents with `isolation: "worktree"`, add this to their prompt:
+
+```
+## Worktree Commit Requirement
+You are working in an isolated worktree. Uncommitted changes will be LOST when the worktree is cleaned up.
+Before completing any task or responding to a shutdown_request:
+1. Stage and commit all changes: `git add -A && git commit -m "<descriptive message>"`
+2. Confirm in your completion message that you have committed to your worktree branch
+Never leave work uncommitted — treat every shutdown_request as imminent worktree deletion.
+```
+
+**Leader merge procedure** — After worktree agents complete and confirm their commits:
+1. For each agent's worktree branch, merge into the main branch: `git merge <agent-branch-name>`
+2. If conflicts arise, resolve them (prefer the agent's version unless it contradicts another agent's work)
+3. After all merges, verify the combined result compiles/passes tests
+4. Delete merged branches: `git branch -d <agent-branch-name>`
+
+**Recovery if worktree branches are missing** — If agent branches are not visible after shutdown:
+1. **Always check `git status` and `git diff` first.** Worktree cleanup often leaves agent changes as unstaged modifications in the main working tree.
+2. `git stash list`, `git branch --no-merged`, and `git reflog` do NOT detect unstaged changes — these commands will show nothing even when work is present.
+3. If `git status` shows unstaged changes, stage and commit them: `git add -A && git commit -m "Recover worktree agent changes"`
+4. Only after `git status` confirms a clean tree should you conclude that work was lost and re-spawn agents.
+
 ### Execution Patterns by Task Type
 
 **code**:
@@ -291,9 +314,11 @@ Use worktrees when:
 
 When all tasks are complete:
 1. Verify via TaskList that all tasks show `completed`
-2. Send `shutdown_request` to each teammate via SendMessage
-3. Wait for shutdown confirmations
-4. Proceed to Phase 6
+2. **Worktree agents — commit before shutdown**: For each agent spawned with `isolation: "worktree"`, send a `SendMessage` asking them to commit all changes (`git add -A && git commit`) and confirm. Wait for their confirmation before proceeding.
+3. Send `shutdown_request` to each teammate via SendMessage
+4. Wait for shutdown confirmations
+5. **Worktree agents — merge after shutdown**: For each worktree agent's branch, follow the Leader merge procedure above (merge branch, resolve conflicts, verify result). If branches are missing, follow the Recovery procedure (`git status` and `git diff` first).
+6. Proceed to Phase 6
 
 ## Phase 6: Deliver
 
