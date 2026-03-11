@@ -1,6 +1,6 @@
 # Anti-Patterns
 
-Catalogued anti-patterns from 40+ authoritative sources. Each entry explains what it is, why it's wrong, and what to do instead.
+Common anti-patterns in Kubernetes operator development. Each entry explains what it is, why it's wrong, and what to do instead.
 
 ---
 

@@ -13,12 +13,14 @@ CREATE/UPDATE/DELETE/PATCH -> API Server -> strongly consistent
 
 ```go
 // WRONG: modifying cache object directly
-obj, _ := r.Get(ctx, key, &obj)
+var obj appsv1.Deployment
+_ = r.Get(ctx, key, &obj)
 obj.Spec.Replicas = ptr.To(int32(5)) // Corrupts cache!
 r.Update(ctx, &obj)
 
 // Correct: deep copy first
-obj, _ := r.Get(ctx, key, &obj)
+var obj appsv1.Deployment
+_ = r.Get(ctx, key, &obj)
 updated := obj.DeepCopy()
 updated.Spec.Replicas = ptr.To(int32(5))
 r.Update(ctx, updated)

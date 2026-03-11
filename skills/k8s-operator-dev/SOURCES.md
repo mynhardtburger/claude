@@ -2,6 +2,23 @@
 
 Research that informed the k8s-operator-dev skill, organized by authority tier.
 
+## Source Authority Hierarchy
+
+When sources disagree, prefer higher-tier sources:
+
+**Tier 1 -- Canonical** (defines the framework behavior):
+- controller-runtime source code and FAQ
+- Kubernetes API Conventions
+
+**Tier 2 -- Official Guides** (teaches the framework):
+- Kubebuilder Book
+- Operator SDK Documentation
+- CNCF Operator White Paper
+
+**Tier 3 -- Production Evidence** (real-world validation):
+- cert-manager, Prometheus Operator, ArgoCD patterns
+- Google Cloud, Red Hat operator guides
+
 ---
 
 ## Tier 1 -- Canonical (defines framework behavior)

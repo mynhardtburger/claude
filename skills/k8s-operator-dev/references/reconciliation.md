@@ -138,7 +138,7 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
     for _, sub := range subreconcilers {
         result, err := sub(ctx, &obj)
-        if err != nil || result.Requeue || result.RequeueAfter > 0 {
+        if err != nil || result.RequeueAfter > 0 {
             return result, err
         }
     }

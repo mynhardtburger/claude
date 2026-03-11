@@ -1,11 +1,21 @@
 ---
 name: k8s-operator-dev
-description: Guides Kubernetes operator development in Go using controller-runtime. Enforces best practices for reconciliation loops, status conditions, finalizers, testing, and performance. Use when writing, reviewing, or debugging Go controllers, reconcilers, CRD types, or operator tests.
+description: >-
+  This skill should be used when writing, reviewing, or debugging Kubernetes
+  operators in Go using controller-runtime, Kubebuilder, or Operator SDK.
+  Covers reconciliation loops, status conditions, finalizers, owner references,
+  envtest testing, and performance tuning. Applicable when the user says things
+  like "write a reconciler", "add a finalizer", "debug infinite reconciliation
+  loop", "set up envtest", "add status conditions to my CRD", or "review my
+  operator code". This skill should NOT be used for general Go development,
+  Helm/Kustomize templating, kubectl usage, cluster administration, or
+  application code running inside operator-managed pods.
+user-invocable: false
 ---
 
 # Kubernetes Operator Development Guide
 
-When writing, reviewing, or debugging Go code that uses controller-runtime, Kubebuilder, or Operator SDK, apply the rules below. These are distilled from 40+ authoritative sources (controller-runtime, Kubebuilder, Operator SDK, CNCF White Paper, Google Cloud, Red Hat, cert-manager, Prometheus Operator, ArgoCD).
+When writing, reviewing, or debugging Go code that uses controller-runtime, Kubebuilder, or Operator SDK, apply the rules below.
 
 ## When to Use
 
@@ -61,8 +71,9 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
     // 1. Fetch the CR -- if gone, return success (nothing to do)
     // 2. Handle deletion -- check DeletionTimestamp, run finalizer cleanup
     // 3. Add finalizer if needed (only if external cleanup required)
-    // 4. Reconcile child resources to match desired state
-    // 5. Update status from observed state
+    // 4. Validate the instance
+    // 5. Reconcile child resources to match desired state
+    // 6. Update status from observed state
     return ctrl.Result{}, nil
 }
 ```
@@ -142,22 +153,7 @@ For detailed guidance on specific topics, consult these references:
 
 ---
 
-## Source Authority Hierarchy
-
-When sources disagree, prefer higher-tier sources:
-
-**Tier 1 -- Canonical** (defines the framework behavior):
-- controller-runtime source code and FAQ
-- Kubernetes API Conventions
-
-**Tier 2 -- Official Guides** (teaches the framework):
-- Kubebuilder Book
-- Operator SDK Documentation
-- CNCF Operator White Paper
-
-**Tier 3 -- Production Evidence** (real-world validation):
-- cert-manager, Prometheus Operator, ArgoCD patterns
-- Google Cloud, Red Hat operator guides
+When sources disagree, prefer: controller-runtime source code > Kubebuilder Book > community guides. See [SOURCES.md](SOURCES.md) for the full authority hierarchy.
 
 ---
 
@@ -169,7 +165,7 @@ When helping with operator code:
 
 2. **Check for the anti-patterns table above.** If you spot one, flag it explicitly with the fix.
 
-3. **When writing a new Reconcile function**, follow the canonical 5-step structure. Include comments marking each step.
+3. **When writing a new Reconcile function**, follow the canonical 6-step structure. Include comments marking each step.
 
 4. **When adding status conditions**, use `[]metav1.Condition` with proper struct tags. Set `observedGeneration`. Use `Status().Update()`.
 
