@@ -11,6 +11,7 @@ shell-snapshots/
 tasks/
 todos/
 ide/
+teams/
 
 # Project-specific cache
 projects/
