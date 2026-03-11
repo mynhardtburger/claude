@@ -139,6 +139,30 @@ ctrl.NewControllerManagedBy(mgr).
 
 `metadata.generation` is incremented by the API server only when writes are made to the spec. Status-only updates do not change generation.
 
+**Caveat: metadata-only changes are filtered out.** `GenerationChangedPredicate` only overrides `Update` events — `Create` and `Delete` events pass through unchanged. However, some important changes are delivered as Update events with no generation increment:
+
+- **DeletionTimestamp** — When an object with a finalizer is deleted, the API server sets `DeletionTimestamp` in metadata. The object is NOT removed (the finalizer keeps it alive), so the watch delivers this as an **Update** event, not a Delete event. `GenerationChangedPredicate` filters it out because generation didn't change. **This breaks finalizer cleanup and makes the object permanently undeletable.**
+- **Labels and annotations** — If the controller reads labels or annotations from the primary resource to make decisions (e.g., pause annotations, opt-out flags), changes to those fields will be missed.
+- **Finalizers** — If an external actor modifies finalizers on the primary resource, the controller won't see it.
+
+**Rule of thumb:** Before applying `GenerationChangedPredicate` to a resource watch, audit the reconcile function for any dependency on metadata fields (DeletionTimestamp, labels, annotations, finalizers). If any exist, use a compound predicate:
+
+```go
+pred := predicate.Or(
+    predicate.GenerationChangedPredicate{},
+    // Pass through updates where DeletionTimestamp was just set
+    predicate.Funcs{
+        UpdateFunc: func(e event.UpdateEvent) bool {
+            return e.ObjectOld.GetDeletionTimestamp().IsZero() &&
+                !e.ObjectNew.GetDeletionTimestamp().IsZero()
+        },
+    },
+    // Add further predicates for any other metadata dependencies
+)
+```
+
+In practice, **any controller that uses finalizers MUST handle the DeletionTimestamp case** — combine `GenerationChangedPredicate` with a deletion-aware predicate, or write a custom predicate that passes both.
+
 ### Other Built-in Predicates
 
 | Predicate | Skips when |

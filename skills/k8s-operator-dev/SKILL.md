@@ -114,7 +114,7 @@ When reviewing operator code, check each item:
 - [ ] Finalizer present only when external cleanup is needed
 - [ ] Finalizer removed only AFTER cleanup succeeds
 - [ ] Predicates applied to reduce unnecessary reconciliations
-- [ ] `GenerationChangedPredicate` used where status-only changes should not trigger reconciliation
+- [ ] `GenerationChangedPredicate` used where status-only changes should not trigger reconciliation — but NOT bare if the controller uses finalizers or depends on metadata fields (labels, annotations); combine with a deletion-aware predicate
 - [ ] Deterministic resource naming where possible (for optimistic locking)
 - [ ] Errors classified: transient -> return error, permanent -> TerminalError
 - [ ] No `Requeue: true` -- use `RequeueAfter` instead
@@ -155,6 +155,7 @@ For detailed guidance on specific topics, consult these references:
 | Hardcoded namespaces/resource names | Make configurable, use deterministic naming formulas |
 | Updating status every reconcile even when unchanged | Compare before updating, use helpers that return changed bool |
 | No predicates on watches | Add `GenerationChangedPredicate` at minimum |
+| Bare `GenerationChangedPredicate` with finalizers | Combine with a predicate that passes DeletionTimestamp changes; audit for other metadata dependencies |
 
 ---
 
@@ -218,7 +219,7 @@ When reviewing Kubernetes operator code (Go, controller-runtime, Kubebuilder, Op
 - **M4** Uses `Patch()` or Server-Side Apply over full `Update()` where possible.
 
 **Watches & Performance (W1-W3)**
-- **W1** `GenerationChangedPredicate` applied on primary resource watch (prevents reconciliation on status-only changes).
+- **W1** `GenerationChangedPredicate` applied on primary resource watch (prevents reconciliation on status-only changes). **Caveat:** a bare `GenerationChangedPredicate` filters out the Update event that sets `DeletionTimestamp`, breaking finalizer cleanup. If the controller uses finalizers or reads metadata fields (labels, annotations), it must use a compound predicate that also passes those changes through.
 - **W2** Child/related object events mapped to parent via `handler.EnqueueRequestForOwner` or `handler.EnqueueRequestsFromMapFunc`.
 - **W3** No unfiltered cluster-wide watches without predicates.
 
@@ -237,7 +238,8 @@ When reviewing Kubernetes operator code (Go, controller-runtime, Kubebuilder, Op
 | ID | Anti-Pattern | What to Look For | Fix |
 |---|---|---|---|
 | AP1 | Event-driven reconciliation | Separate create/update/delete handlers or event-type branching | Single level-based reconcile: read state, compute diff, converge |
-| AP2 | Infinite reconciliation loop | Status updated every reconcile without change detection; non-deterministic map serialization; missing predicates | Compare before updating; sort maps; add `GenerationChangedPredicate` |
+| AP2 | Infinite reconciliation loop | Status updated every reconcile without change detection; non-deterministic map serialization; missing predicates | Compare before updating; sort maps; add `GenerationChangedPredicate` (but see AP2b) |
+| AP2b | Bare `GenerationChangedPredicate` with finalizers | `GenerationChangedPredicate` on primary watch + controller uses finalizers; DeletionTimestamp update is filtered, finalizer never runs, object undeletable | Combine with a predicate that passes DeletionTimestamp changes; audit reconcile for other metadata dependencies (labels, annotations) |
 | AP3 | Reading status to decide actions | `if obj.Status.Phase == "Running"` driving reconciler logic | Observe actual child resource state; update status as last step |
 | AP4 | Fake client tests | `client.NewFakeClient()`, mock clients, asserting on API call counts | envtest with real API server; assert on state, not calls |
 | AP5 | Long-running reconcile | Polling loops, `time.Sleep`, waiting for external API inside Reconcile | Return `RequeueAfter`; check progress on next reconcile |
@@ -247,6 +249,6 @@ When reviewing Kubernetes operator code (Go, controller-runtime, Kubebuilder, Op
 
 ### Severity Guide for Reviewers
 
-- **Critical**: R1-R3 violations, AP1-AP3, S4 (wrong status update method), M2 (cross-namespace owner refs), AP6
+- **Critical**: R1-R3 violations, AP1-AP3 (including AP2b), S4 (wrong status update method), M2 (cross-namespace owner refs), AP6
 - **Important**: R5-R6, S1-S3, S5, M1, M3-M4, W1, T1-T2, AP4-AP5, AP8
 - **Suggestion**: W2-W3, T3-T4, X1-X2, AP7, deterministic naming, error classification (transient vs permanent)

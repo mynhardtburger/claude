@@ -93,6 +93,7 @@ func (r *MyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 3. **Return error on cleanup failure** -- this retries the reconciliation. The finalizer prevents the object from being garbage collected until cleanup succeeds.
 4. **Without a finalizer, deletion = gone.** The object disappears from the cache. You get a reconcile where `Get` returns NotFound, with no opportunity to run cleanup.
 5. **Multiple finalizers are allowed.** Each represents a different cleanup responsibility.
+6. **Predicate compatibility.** `GenerationChangedPredicate` blocks the Update event that sets `DeletionTimestamp` (generation does not change on deletion). If you use finalizers, do NOT use a bare `GenerationChangedPredicate` on the primary resource — combine it with a predicate that passes deletion-timestamp changes through. See the [performance reference](performance.md#generationchangedpredicate) for the compound predicate pattern.
 
 ### Async Cleanup
 

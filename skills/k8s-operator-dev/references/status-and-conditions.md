@@ -164,6 +164,7 @@ ctrl.NewControllerManagedBy(mgr).
     For(&myv1.MyResource{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
     Build(r)
 ```
+   **Warning:** A bare `GenerationChangedPredicate` filters out ALL metadata-only Update events, including the one that sets `DeletionTimestamp` (which breaks finalizer cleanup). If the controller uses finalizers or depends on metadata fields, use a compound predicate — see the [performance reference](performance.md#generationchangedpredicate).
 
 4. **SyncPeriod interaction.** `SyncPeriod` fires artificial update events. Predicates that compare old vs new will filter these out, but custom predicates that always return true will not.
 

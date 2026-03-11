@@ -67,7 +67,7 @@ Common anti-patterns in Kubernetes operator development. Each entry explains wha
 
 **Why it's wrong:** Causes unnecessary reconciliations on status-only or metadata-only changes. Wastes CPU and increases API server load. Particularly bad for cluster-wide watches.
 
-**Do instead:** Apply `GenerationChangedPredicate` at minimum. Add custom predicates for specific filtering needs.
+**Do instead:** Apply `GenerationChangedPredicate` as a starting point, but **audit your reconcile function for metadata dependencies first**. `GenerationChangedPredicate` filters out all Update events where generation didn't change, which includes DeletionTimestamp being set (breaks finalizers), label changes, and annotation changes. If the controller uses finalizers or reads metadata fields, combine `GenerationChangedPredicate` with predicates that pass those changes through. See the [performance reference](performance.md#generationchangedpredicate) for details and the compound predicate pattern.
 
 *Source: controller-runtime docs, OuterByte 2025 Guide*
 
