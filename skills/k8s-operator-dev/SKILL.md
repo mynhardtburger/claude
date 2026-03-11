@@ -11,6 +11,11 @@ description: >-
   Helm/Kustomize templating, kubectl usage, cluster administration, or
   application code running inside operator-managed pods.
 user-invocable: false
+composable: true
+composable-sections:
+  - "Review Context for Agents"
+  - "Code Review Checklist"
+  - "Anti-Pattern Quick Reference"
 ---
 
 # Kubernetes Operator Development Guide
@@ -180,3 +185,68 @@ When helping with operator code:
 9. **Consult reference files** for detailed patterns when the quick reference above isn't sufficient. Don't guess -- look up the correct pattern.
 
 10. **Cite the rule** when flagging an issue. E.g., "This violates Core Principle #2 (idempotency) because..."
+
+---
+
+## Review Context for Agents
+
+> **Purpose:** This section is designed for injection by orchestration skills (e.g., dev-team). It provides a self-contained operator review checklist and condensed anti-patterns without requiring agents to read the full skill or reference files.
+
+### Operator Review Checklist
+
+When reviewing Kubernetes operator code (Go, controller-runtime, Kubebuilder, Operator SDK), check every item below. Flag violations with the rule ID.
+
+**Reconciliation (R1-R6)**
+- **R1** Reconcile is level-based — no branching on event type (create/update/delete). Request contains only name/namespace.
+- **R2** Reconcile is idempotent — running N times with same state produces same result. Uses "if exists and matches, skip" guards.
+- **R3** Status reconstructed from world state — never reads own `.status` to decide what to do next.
+- **R4** One controller per Kind — does not reconcile multiple GVKs in one controller.
+- **R5** No blocking waits — returns `RequeueAfter` for pending operations, checks progress on next reconcile.
+- **R6** No `Requeue: true` — uses `RequeueAfter` with explicit duration instead.
+
+**Status & Conditions (S1-S5)**
+- **S1** Uses `[]metav1.Condition` (not single `.status.phase` as primary mechanism).
+- **S2** Condition struct has all required tags: `+listType=map`, `+listMapKey=type`, `+patchStrategy=merge`, `+patchMergeKey=type`, `+optional`, and JSON/patch struct tags.
+- **S3** `ObservedGeneration` set to `obj.Generation` on every condition update.
+- **S4** Status updated via `Status().Update()` or `Status().Patch()` — never `Update()` on the main object.
+- **S5** Status compared before updating — avoids writes when nothing changed (prevents infinite reconciliation loops).
+
+**Resource Management (M1-M4)**
+- **M1** Owner references set on in-cluster children via `ctrl.SetControllerReference()`.
+- **M2** No cross-namespace owner references — uses finalizers instead.
+- **M3** Finalizers present when external resources need cleanup — added before creating external resources, removed only after cleanup succeeds.
+- **M4** Uses `Patch()` or Server-Side Apply over full `Update()` where possible.
+
+**Watches & Performance (W1-W3)**
+- **W1** `GenerationChangedPredicate` applied on primary resource watch (prevents reconciliation on status-only changes).
+- **W2** Child/related object events mapped to parent via `handler.EnqueueRequestForOwner` or `handler.EnqueueRequestsFromMapFunc`.
+- **W3** No unfiltered cluster-wide watches without predicates.
+
+**Testing (T1-T4)**
+- **T1** Integration tests use envtest — not fake clients (`client.NewFakeClient()` is an anti-pattern).
+- **T2** Async assertions use `Eventually`/`Consistently` — never `time.Sleep`.
+- **T3** Two-client pattern: direct `client.New()` for test assertions, `mgr.GetClient()` for the reconciler.
+- **T4** Namespace isolation: each test creates a unique namespace.
+
+**Security (X1-X2)**
+- **X1** RBAC annotations match actual API calls — no over-privileged roles.
+- **X2** Containers run as non-root with `allowPrivilegeEscalation: false` and capabilities dropped.
+
+### Key Anti-Patterns to Flag
+
+| ID | Anti-Pattern | What to Look For | Fix |
+|---|---|---|---|
+| AP1 | Event-driven reconciliation | Separate create/update/delete handlers or event-type branching | Single level-based reconcile: read state, compute diff, converge |
+| AP2 | Infinite reconciliation loop | Status updated every reconcile without change detection; non-deterministic map serialization; missing predicates | Compare before updating; sort maps; add `GenerationChangedPredicate` |
+| AP3 | Reading status to decide actions | `if obj.Status.Phase == "Running"` driving reconciler logic | Observe actual child resource state; update status as last step |
+| AP4 | Fake client tests | `client.NewFakeClient()`, mock clients, asserting on API call counts | envtest with real API server; assert on state, not calls |
+| AP5 | Long-running reconcile | Polling loops, `time.Sleep`, waiting for external API inside Reconcile | Return `RequeueAfter`; check progress on next reconcile |
+| AP6 | Writing CR spec from operator | Controller modifying `.spec` of its own CR | Use admission webhooks for defaults; communicate via status |
+| AP7 | Multiple operators for same CRD | Two controllers reconciling the same GVK | One operator per CRD on a cluster |
+| AP8 | Missing finalizer for external resources | No finalizer when CR manages cloud/external resources | Add finalizer before creating external resources |
+
+### Severity Guide for Reviewers
+
+- **Critical**: R1-R3 violations, AP1-AP3, S4 (wrong status update method), M2 (cross-namespace owner refs), AP6
+- **Important**: R5-R6, S1-S3, S5, M1, M3-M4, W1, T1-T2, AP4-AP5, AP8
+- **Suggestion**: W2-W3, T3-T4, X1-X2, AP7, deterministic naming, error classification (transient vs permanent)

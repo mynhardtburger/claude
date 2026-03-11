@@ -30,6 +30,33 @@ Then investigate the context thoroughly using Glob, Grep, Read, and Agent (with 
 - **strategy**: Explore relevant codebase areas, research the problem space (WebSearch if needed), identify constraints
 - **communication**: Gather the technical context, identify audience, determine desired outcome
 
+## Phase 1.5: Skill Discovery
+
+After classifying the task, identify domain-specific skills whose knowledge should inform the work:
+
+1. **Scan available skills** from the system prompt's skill list. Look for skills whose description matches the task domain (e.g., a K8s operator codebase matches a skill mentioning "controller-runtime" or "Kubebuilder"; code using the Anthropic SDK matches a skill mentioning "Claude API").
+
+2. **Read matched skill files.** Use Glob to find the skill's `SKILL.md` (typically at `~/.claude/skills/<name>/SKILL.md`). Read it and look for:
+   - A `## Review Context for Agents` section (preferred — self-contained, ready to inject)
+   - A `## Code Review Checklist` or equivalent section
+   - An anti-patterns table or reference
+   - Reference files in a `references/` directory alongside the skill
+
+3. **Extract domain standards.** Collect:
+   - Review checklists (actionable items agents should check)
+   - Anti-pattern lists (common mistakes to flag)
+   - Domain-specific quality rules (e.g., "use envtest not fake clients", "set ObservedGeneration on conditions")
+   - If the skill has reference files, read them for additional detail
+
+4. **Store as `domain_standards`.** These will be:
+   - Added to Phase 3 (Quality Standards) as "Domain-Specific Standards"
+   - Injected into each agent's prompt in Phase 5 under "Domain-Specific Review Criteria"
+
+**Skip skill discovery** when:
+- The task is purely non-technical (communication drafting with no code context)
+- No available skills match the task domain
+- The task is trivial enough that domain expertise adds no value
+
 ## Phase 2: Design the Team
 
 Select 2-4 agents from the role catalog based on task type and scope.
@@ -134,6 +161,9 @@ Include the relevant standards in each agent's brief when spawning them. These d
 - Minimum length that conveys the necessary information -- no filler
 - Clear ask or call to action stated explicitly and early
 
+### Domain-Specific Standards (from Skill Discovery)
+If Phase 1.5 discovered matching skills, include their extracted standards here. Agents must review against these in addition to the generic standards above. When citing a domain-specific finding, reference the rule (e.g., "Violates Core Principle #2 (idempotency)" or "Anti-pattern #18: fake clients").
+
 ## Phase 4: Present Plan
 
 Before creating the team, present to me briefly:
@@ -203,7 +233,8 @@ Each agent's prompt must include:
 3. Which files/scope they own (explicit list -- no overlap between Implementers)
 4. The relevant quality standards from Phase 3 (copy them into the prompt)
 5. Project conventions from the project's CLAUDE.md (if it exists)
-6. Instructions to check TaskList after completing each task and claim the next available unblocked task
+6. **Domain-specific standards** from Phase 1.5 skill discovery (if any matched). Include the full review checklist and anti-pattern list. Instruct the agent to cite the rule when flagging domain-specific issues.
+7. Instructions to check TaskList after completing each task and claim the next available unblocked task
 
 **Teammate prompt template:**
 ```
@@ -220,6 +251,11 @@ You are the [ROLE] on team "[TEAM_NAME]".
 
 ## Project Conventions
 [Relevant conventions from CLAUDE.md]
+
+## Domain-Specific Review Criteria
+[If Phase 1.5 discovered matching skills, paste the review checklist and anti-patterns here.
+Instruct: "When flagging domain-specific issues, cite the rule by name or number."]
+[If no skills matched, omit this section entirely.]
 
 ## How to Work
 1. Check TaskList to find tasks assigned to you or unassigned unblocked tasks
