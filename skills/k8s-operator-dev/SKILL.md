@@ -182,7 +182,7 @@ When helping with operator code:
 
 8. **When debugging infinite reconciliation loops**, check: (a) status updates without change detection, (b) missing predicates, (c) non-deterministic serialization (map ordering), (d) SyncPeriod interaction with predicates.
 
-9. **Consult reference files** for detailed patterns when the quick reference above isn't sufficient. Don't guess -- look up the correct pattern.
+9. **Consult reference files** for detailed patterns when the quick reference above isn't sufficient. Look up the correct pattern rather than guessing.
 
 10. **Cite the rule** when flagging an issue. E.g., "This violates Core Principle #2 (idempotency) because..."
 
