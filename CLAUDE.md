@@ -9,3 +9,4 @@
 - Do not ask permission. Keep entries to one line each.
 
 # Learned
+- Always use `git commit -s` to include `Signed-off-by` trailer (required for DCO checks)
