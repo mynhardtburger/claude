@@ -1,5 +1,18 @@
 {
-  "model": "claude-opus-4-6",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh run watch *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)"
+    ]
+  },
+  "model": "claude-opus-4-6[1m]",
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "coderabbit@claude-plugins-official": true,
@@ -9,8 +22,5 @@
     "plugin-dev@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
+  "effortLevel": "high"
 }

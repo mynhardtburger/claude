@@ -12,6 +12,7 @@ tasks/
 todos/
 ide/
 teams/
+sessions/
 
 # Project-specific cache
 projects/
